@@ -10,25 +10,27 @@ import {
 } from "./icons";
 
 type PopoverContent = {
-  url: string;
   title: string;
+  linkUrl: string;
   shareText?: string;
   networks: string;
   isAtomic: boolean;
+  copiedLabel: string;
 };
 
 export function createPopoverContent({
-  url,
   title,
+  linkUrl,
   networks,
   isAtomic,
+  copiedLabel,
 }: PopoverContent) {
   function createSocialMediaLink(
     icon: string,
     network: string,
     shareURL: string
   ) {
-    let finalUrl = shareURL.replace(/{{url}}/g, url);
+    let finalUrl = shareURL.replace(/{{url}}/g, linkUrl);
 
     if (title) {
       finalUrl = finalUrl.replace(/{{text}}/g, title);
@@ -134,13 +136,13 @@ export function createPopoverContent({
         }
 
         try {
-          await navigator.clipboard.writeText(window.location.href);
+          await navigator.clipboard.writeText(linkUrl);
           btn.disabled = true;
 
           if (isAtomic) {
             btn.innerHTML = copiedIcon;
           } else {
-            btn.innerHTML = `${copiedIcon} <span>Copied!</span>`;
+            btn.innerHTML = `${copiedIcon} <span>${copiedLabel}</span>`;
           }
 
           setTimeout(() => {
@@ -148,7 +150,7 @@ export function createPopoverContent({
             btn.innerHTML = isAtomic ? initialAtomic : initial;
           }, 5000);
         } catch (err) {
-          console.log("[Share Button] We could not copy this");
+          console.error("[Share Button] We could not copy this", err);
         }
       });
       return btn;

@@ -34,14 +34,18 @@ export class ShareButton extends HTMLElement {
 
   render() {
     const title =
+    this.getAttribute("data-title") ||
       document.querySelector("title")?.textContent ||
       document.querySelector("h1")?.textContent ||
       "";
 
+    const linkUrl = this.getAttribute("data-url") || window.location.href;
+    const copiedLabel = this.getAttribute("data-copied-label") || "Copied!";
+
     const userStyles = createUserStyles(this);
     const icon = this.createIcon();
     const isAtomic = this.hasAttribute("atomic");
-    const popover = this.createPopover(title, isAtomic);
+    const popover = this.createPopover(title, linkUrl, isAtomic, copiedLabel);
     const button = isAtomic ? "" : this.createButton(icon);
 
     // dark mode
@@ -70,7 +74,7 @@ export class ShareButton extends HTMLElement {
           try {
             navigator.share({
               title,
-              url: window.location.href,
+              url: linkUrl,
             });
             target.removeAttribute("popover");
           } catch (err) {
@@ -136,9 +140,9 @@ export class ShareButton extends HTMLElement {
           return;
         }
 
-        navigator.clipboard.writeText(window.location.href);
+        navigator.clipboard.writeText(linkUrl);
         setTimeout(() => {
-          this.textContent = "Copied!";
+          this.textContent = copiedLabel;
           this.createButton(copiedIcon);
         }, 1000);
       });
@@ -187,26 +191,24 @@ export class ShareButton extends HTMLElement {
 
     if (isCircle || isNoText) {
       button.setAttribute("aria-label", "Share");
-
       button.innerHTML = icon;
     } else {
-      button.innerHTML = `${icon} ${
-        this.textContent ? "<slot></slot>" : "Share"
-      }`;
+      button.innerHTML = `${icon} <slot></slot>`;
     }
     return button;
   }
 
-  createPopover(title: string, isAtomic = false) {
+  createPopover(title: string, linkUrl: string, isAtomic = false, copiedLabel: string) {
     const networks =
       this.getAttribute("networks") ||
       "x, linkedin, facebook, email, whatsapp, telegram, copy";
     const popoverContent = createPopoverContent({
-      url: window.location.href,
       title,
+      linkUrl,
       shareText: this.textContent ?? "Share",
       networks,
       isAtomic,
+      copiedLabel,
     });
 
     if (!isAtomic) {
