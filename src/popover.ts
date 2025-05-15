@@ -16,6 +16,8 @@ type PopoverContent = {
   networks: string;
   isAtomic: boolean;
   copiedLabel: string;
+  // Add an optional property for the copy link label
+  copyLinkLabel?: string;
 };
 
 export function createPopoverContent({
@@ -24,6 +26,8 @@ export function createPopoverContent({
   networks,
   isAtomic,
   copiedLabel,
+  // Destructure the new copyLinkLabel
+  copyLinkLabel,
 }: PopoverContent) {
   function createSocialMediaLink(
     icon: string,
@@ -123,7 +127,8 @@ export function createPopoverContent({
       btn.classList.add("social-media", "copy-button");
       btn.setAttribute("aria-label", "Copy link");
       btn.setAttribute("part", `share-link ${trimmedNetwork}`);
-      const initial = `${copyIcon} <span>Copy link</span>`;
+      // Use copyLinkLabel if provided, otherwise default to "Copy link"
+      const initial = `${copyIcon} <span>${copyLinkLabel || "Copy link"}</span>`;
       const initialAtomic = copyIcon;
       btn.innerHTML = isAtomic ? initialAtomic : initial;
 

@@ -34,18 +34,27 @@ export class ShareButton extends HTMLElement {
 
   render() {
     const title =
-    this.getAttribute("data-title") ||
+      this.getAttribute("data-title") ||
       document.querySelector("title")?.textContent ||
       document.querySelector("h1")?.textContent ||
       "";
 
     const linkUrl = this.getAttribute("data-url") || window.location.href;
     const copiedLabel = this.getAttribute("data-copied-label") || "Copied!";
+    // Get the new data attribute for the copy link label
+    const copyLinkLabel = this.getAttribute("data-copy-link-label");
 
     const userStyles = createUserStyles(this);
     const icon = this.createIcon();
     const isAtomic = this.hasAttribute("atomic");
-    const popover = this.createPopover(title, linkUrl, isAtomic, copiedLabel);
+    // Pass the new copyLinkLabel to createPopover
+    const popover = this.createPopover(
+      title,
+      linkUrl,
+      isAtomic,
+      copiedLabel,
+      copyLinkLabel
+    );
     const button = isAtomic ? "" : this.createButton(icon);
 
     // dark mode
@@ -198,7 +207,14 @@ export class ShareButton extends HTMLElement {
     return button;
   }
 
-  createPopover(title: string, linkUrl: string, isAtomic = false, copiedLabel: string) {
+  createPopover(
+    title: string,
+    linkUrl: string,
+    isAtomic = false,
+    copiedLabel: string,
+    // Add copyLinkLabel parameter
+    copyLinkLabel?: string | null
+  ) {
     const networks =
       this.getAttribute("networks") ||
       "x, linkedin, facebook, email, whatsapp, telegram, copy";
@@ -209,6 +225,8 @@ export class ShareButton extends HTMLElement {
       networks,
       isAtomic,
       copiedLabel,
+      // Pass copyLinkLabel to createPopoverContent
+      copyLinkLabel: copyLinkLabel ?? undefined,
     });
 
     if (!isAtomic) {
