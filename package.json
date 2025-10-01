@@ -42,5 +42,8 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "@astrojs/mdx": "^4.3.0"
   }
 }
