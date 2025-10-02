@@ -141,7 +141,16 @@ export function createPopoverContent({
         }
 
         try {
-          await navigator.clipboard.writeText(linkUrl);
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(linkUrl);
+          } else {
+            const input = document.createElement("input");
+            input.value = linkUrl;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand("copy");
+            document.body.removeChild(input);
+          }
           btn.disabled = true;
 
           if (isAtomic) {

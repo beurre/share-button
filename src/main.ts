@@ -1,6 +1,6 @@
 import { createDarkModeStyles } from "./dark-mode";
 import { createPopoverContent } from "./popover";
-import { copiedIcon, icons } from "./icons";
+import { icons } from "./icons";
 import style from "./style.css?inline";
 import { createUserStyles } from "./user-styles";
 
@@ -32,6 +32,16 @@ export class ShareButton extends HTMLElement {
     this.render();
   }
 
+  private showCopiedFeedback(copiedLabel: string, button: HTMLElement) {
+    const feedback = document.createElement("span");
+    feedback.textContent = copiedLabel;
+    feedback.className = "copied-feedback";
+    button.appendChild(feedback);
+    setTimeout(() => {
+      feedback.remove();
+    }, 1000);
+  }
+
   render() {
     const title =
       this.getAttribute("data-title") ||
@@ -41,26 +51,17 @@ export class ShareButton extends HTMLElement {
 
     const linkUrl = this.getAttribute("data-url") || window.location.href;
     const copiedLabel = this.getAttribute("data-copied-label") || "Copied!";
-    // Get the new data attribute for the copy link label
     const copyLinkLabel = this.getAttribute("data-copy-link-label");
 
     const userStyles = createUserStyles(this);
     const icon = this.createIcon();
     const isAtomic = this.hasAttribute("atomic");
-    // Pass the new copyLinkLabel to createPopover
-    const popover = this.createPopover(
-      title,
-      linkUrl,
-      isAtomic,
-      copiedLabel,
-      copyLinkLabel
-    );
-    const button = isAtomic ? "" : this.createButton(icon);
+    const popover = this.createPopover(title, linkUrl, isAtomic, copiedLabel, copyLinkLabel);
+    const button: HTMLElement | null = isAtomic ? null : this.createButton(icon);
 
-    // dark mode
+    // dark mode styles
     const darkModeStyles = createDarkModeStyles(this);
 
-    // styles
     const styles = new CSSStyleSheet();
     styles.replaceSync(style + userStyles + darkModeStyles);
     this.shadow.adoptedStyleSheets = [styles];
@@ -68,31 +69,31 @@ export class ShareButton extends HTMLElement {
     const wrapper = document.createElement("div");
     wrapper.setAttribute("class", "wrapper");
     wrapper.setAttribute("part", "share-wrapper");
-    const contentEl = this.isPopoverSupport ? popover : "<div></div>";
-    wrapper.append(button, contentEl);
+    wrapper.append(
+      ...(button ? [button] : []), 
+      this.isPopoverSupport ? popover : document.createElement("div")
+    );
+
     this.shadow.replaceChildren(wrapper);
+
     let popoverCoords: PopoverCoords = null;
 
     if (!isAtomic && button) {
       button.addEventListener("click", (e) => {
-        const target = e.currentTarget as Element;
+        const target = e.currentTarget as HTMLElement;
 
-        // if mobile and share is supported
-
+        // Mobile share
         if (this.isMobile) {
           try {
-            navigator.share({
-              title,
-              url: linkUrl,
-            });
+            navigator.share({ title, url: linkUrl });
             target.removeAttribute("popover");
           } catch (err) {
-            console.log(err);
+            console.error(err);
           }
-
           return;
         }
 
+        // Popover support
         if (this.isPopoverSupport) {
           const popoverClone = popover.cloneNode(true) as HTMLElement;
           popoverClone.removeAttribute("id");
@@ -103,70 +104,65 @@ export class ShareButton extends HTMLElement {
           popoverClone.classList.add("up", "popover-clone");
           popoverCoords = popoverClone.getBoundingClientRect();
           popoverClone.remove();
+
           const buttonCoords = target.getBoundingClientRect();
-          let left = `${
-            buttonCoords.left + buttonCoords.width / 2 - popoverCoords.width / 2
-          }px`;
+          let left = `${buttonCoords.left + buttonCoords.width / 2 - popoverCoords.width / 2}px`;
 
           if (buttonCoords.left < 100) {
-            left = `${
-              buttonCoords.left +
-              buttonCoords.width / 2 -
-              popoverCoords.width * 0.25
-            }px`;
+            left = `${buttonCoords.left + buttonCoords.width / 2 - popoverCoords.width * 0.25}px`;
             popover.classList.add("left-adjust");
           }
 
           if (buttonCoords.right > window.innerWidth - 100) {
-            left = `${
-              buttonCoords.left +
-              buttonCoords.width / 2 -
-              popoverCoords.width * 0.75
-            }px`;
+            left = `${buttonCoords.left + buttonCoords.width / 2 - popoverCoords.width * 0.75}px`;
             popover.classList.add("right-adjust");
           }
 
           const scrollY = window.scrollY;
-
           popover.style.left = left;
-
-          if (document.documentElement.clientHeight / 2 > buttonCoords.y) {
-            // PUT below
-            popover.style.top = `${
-              scrollY + buttonCoords.top + buttonCoords.height
-            }px`;
-            popover.classList.remove("down");
-            popover.classList.add("up");
-          } else {
-            // PUT above
-            popover.style.top = `${
-              scrollY + buttonCoords.top - popoverCoords.height
-            }px`;
-            popover.classList.remove("up");
-            popover.classList.add("down");
-          }
+          popover.style.top =
+            document.documentElement.clientHeight / 2 > buttonCoords.y
+              ? `${scrollY + buttonCoords.top + buttonCoords.height}px`
+              : `${scrollY + buttonCoords.top - popoverCoords.height}px`;
+          popover.classList.toggle("up", document.documentElement.clientHeight / 2 > buttonCoords.y);
+          popover.classList.toggle("down", !(document.documentElement.clientHeight / 2 > buttonCoords.y));
 
           return;
         }
 
-        navigator.clipboard.writeText(linkUrl);
-        setTimeout(() => {
-          this.textContent = copiedLabel;
-          this.createButton(copiedIcon);
-        }, 1000);
+        // Clipboard copy
+        if (navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText(linkUrl)
+            .then(() => {
+              if (button) this.showCopiedFeedback(copiedLabel, button);
+            })
+            .catch(err => console.error("[Share Button] Clipboard write failed", err));
+        } else {
+          const input = document.createElement("input");
+          input.value = linkUrl;
+          document.body.appendChild(input);
+          input.select();
+          try {
+            document.execCommand("copy");
+            if (button) this.showCopiedFeedback(copiedLabel, button);
+          } catch (err) {
+            console.error("[Share Button] Copy fallback failed", err);
+          }
+          document.body.removeChild(input);
+        }
       });
     }
 
     if (!isAtomic) {
       const closePopover = () => {
-        const popover = this.shadow.querySelector("[popover]") as HTMLElement;
-        popover.hidePopover();
+        const popoverEl = this.shadow.querySelector("[popover]") as HTMLElement | null;
+        popoverEl?.hidePopover?.();
       };
-
-      addEventListener("resize", closePopover);
-      addEventListener("scroll", closePopover);
+      window.addEventListener("resize", closePopover);
+      window.addEventListener("scroll", closePopover);
     }
   }
+
 
   createIcon() {
     const iconChoice = this.getAttribute("icon") || "1";
@@ -176,9 +172,6 @@ export class ShareButton extends HTMLElement {
     if (iconChoice === "false") {
       icon = "";
     } else if (!["1", "2", "3", "4", "5", "6", "7"].includes(iconChoice)) {
-      console.log(
-        '[Share Button] It looks like you did not specify a valid icon. Please add an icon attribute with a value of "1," "2," "3," "4," "5," "6," or "7"'
-      );
       icon = icons["1" as keyof typeof icons];
     } else {
       icon = icons[iconChoice as keyof typeof icons];
